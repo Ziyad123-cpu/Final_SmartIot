@@ -5,13 +5,14 @@ import paho.mqtt.client as mqtt
 import json
 import threading
 import sqlite3
+from datetime import datetime   # ⬅️ TAMBAHAN (WAJIB)
 
 # ============================================
 #               FLASK SETUP
 # ============================================
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # backend/
-FRONTEND_DIR = os.path.join(BASE_DIR, "../frontend")    # ../frontend/
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(BASE_DIR, "../frontend")
 
 app = Flask(
     __name__,
@@ -24,7 +25,7 @@ CORS(app)
 #               DATABASE SETUP
 # ============================================
 
-DB_PATH = os.path.join(BASE_DIR, "data.db")   # Simpan DB di backend/
+DB_PATH = os.path.join(BASE_DIR, "data.db")
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -49,6 +50,12 @@ init_db()
 
 def insert_data_to_db(data):
     try:
+        # ⏰ AMBIL WAKTU SAAT INI
+        now = datetime.now()
+        tanggal = now.strftime("%d-%m-%Y")
+        hari = now.strftime("%A")        # Monday, Tuesday, dst
+        waktu = now.strftime("%H:%M:%S")
+
         conn = sqlite3.connect(DB_PATH, timeout=5)
         c = conn.cursor()
         c.execute("""
@@ -56,9 +63,9 @@ def insert_data_to_db(data):
             (tanggal, hari, waktu, moisture, soil_temp, air_temp, air_hum, pump_state)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            data.get("tanggal", "-"),
-            data.get("hari", "-"),
-            data.get("waktu", "-"),
+            tanggal,
+            hari,
+            waktu,
             data.get("moisturePercent", 0),
             data.get("soilTemperature", 0.0),
             data.get("suhuUdara", 0.0),
@@ -104,13 +111,11 @@ def on_message(client, userdata, msg):
             sensor_data.update(data)
             print("DATA MASUK MQTT:", sensor_data)
 
-            # simpan ke database
             insert_data_to_db(sensor_data)
 
     except Exception as e:
         print("MQTT ERROR:", e)
 
-# MQTT thread
 mqtt_client = mqtt.Client()
 mqtt_client.on_connect = on_connect
 mqtt_client.on_message = on_message
